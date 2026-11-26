@@ -125,8 +125,15 @@ const defaultRecipes = {
   'dessert-affogato': [{ ingredientId: 1, qty: 18, unit: 'g' }, { ingredientId: 20, qty: 80, unit: 'g' }]
 };
 
-// Storage helper with strict blank-slate baseline
-const APP_STORE_VERSION = 'v6_blank_slate_baseline';
+// Storage helper with 1-year+ testing dataset support
+const APP_STORE_VERSION = 'v6_1yr_testing_dataset_v2';
+
+const toLocalYMD = d => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const readStore = (key, fallback) => {
   try {
@@ -137,17 +144,12 @@ const readStore = (key, fallback) => {
       localStorage.removeItem('la-menu-groups');
       localStorage.removeItem('cg-inventory');
       localStorage.removeItem('cg-orders');
-      localStorage.removeItem('la-loyalty');
       localStorage.removeItem('la-opex');
       localStorage.removeItem('la-stockin');
       localStorage.removeItem('la-pending-tickets');
       localStorage.removeItem('la-spoilage');
-      localStorage.removeItem('la-promos');
-      localStorage.removeItem('la-shift');
-      localStorage.removeItem('la-active-cart');
-      localStorage.removeItem('la-active-service');
-      localStorage.removeItem('la-active-loyalty-id');
-      localStorage.removeItem('la-applied-discount');
+      localStorage.removeItem('la-loyalty');
+      localStorage.removeItem('la-1yr-cleared');
       localStorage.setItem('la-version', APP_STORE_VERSION);
     }
     const val = localStorage.getItem(key);
@@ -163,13 +165,16 @@ let menuGroups = readStore('la-menu-groups', [...new Set(defaultProducts.map(p =
 let inventory = readStore('cg-inventory', defaultInventory);
 let recipes = readStore('la-recipes', defaultRecipes);
 
-// Orders, Financials, and Loyalty start strictly from 0
+// Orders and Financials start strictly from 0
 let orders = readStore('cg-orders', []);
 let opexLedger = readStore('la-opex', []);
 let stockInHistory = readStore('la-stockin', []);
 let spoilageLedger = readStore('la-spoilage', []);
 let pendingTickets = readStore('la-pending-tickets', []);
-let loyaltyMembers = readStore('la-loyalty', []);
+let loyaltyMembers = readStore('la-loyalty', [
+  { id: 'LOY-1001', name: 'Alex Reyes', phone: '09171234567', stamps: 0, history: [] },
+  { id: 'LOY-1002', name: 'Maria Santos', phone: '09189876543', stamps: 0, history: [] }
+]);
 
 const defaultPromos = [
   { id: 'PRM-001', code: 'COFFEE10', name: '10% Off Entire Order', type: 'percentage', value: 10, minSpend: 0, maxCap: 0, active: true },
@@ -314,7 +319,7 @@ function showView(name) {
 
 // --- Landing Portal Pulse Numbers ---
 function renderPortalPulse() {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toLocalYMD(new Date());
   const todaysOrders = orders.filter(o => o.date === todayStr && o.status === 'Completed');
 
   const grossSales = todaysOrders.reduce((sum, o) => sum + (o.grossTotal || o.total), 0);
@@ -420,6 +425,388 @@ function restoreInventoryForOrder(order) {
       if (syrup) syrup.quantity += (20 * cartItem.mods.syrup.length * count);
     }
   });
+  saveAll();
+}
+
+// --- 1-Year+ Realistic Coffee Shop Dataset & Seeder (Oct 1, 2025 – Nov 26, 2026+) ---
+function generateOneYearDataset() {
+  const simOrders = [];
+  const simOpEx = [];
+  const simStockIn = [];
+  const simSpoilage = [];
+  const simLoyalty = [
+    { id: 'LOY-1001', name: 'Alex Reyes', phone: '09171234567', stamps: 12, history: [{ date: '2026-10-14', type: 'earn', stamps: 4, note: 'Order #LA-2812' }, { date: '2026-10-28', type: 'redeem', stamps: -12, note: 'Free drink reward redeemed' }, { date: '2026-11-18', type: 'earn', stamps: 12, note: 'Regular visits' }] },
+    { id: 'LOY-1002', name: 'Maria Santos', phone: '09189876543', stamps: 7, history: [{ date: '2026-06-22', type: 'earn', stamps: 3, note: 'Order #LA-1945' }, { date: '2026-10-18', type: 'earn', stamps: 4, note: 'Order #LA-2850' }] },
+    { id: 'LOY-1003', name: 'Carlo Dizon', phone: '09228881234', stamps: 9, history: [{ date: '2026-09-05', type: 'earn', stamps: 5, note: 'Order #LA-2412' }, { date: '2026-11-03', type: 'earn', stamps: 4, note: 'Order #LA-2960' }] },
+    { id: 'LOY-1004', name: 'Bea Alonzo', phone: '09156677889', stamps: 5, history: [{ date: '2026-08-30', type: 'earn', stamps: 5, note: 'Order #LA-2389' }] },
+    { id: 'LOY-1005', name: 'Daniel Padilla', phone: '09204445566', stamps: 14, history: [{ date: '2026-10-12', type: 'earn', stamps: 6, note: 'Order #LA-2765' }, { date: '2026-11-20', type: 'earn', stamps: 8, note: 'Order #LA-3081' }] },
+    { id: 'LOY-1006', name: 'Kathryn Bernardo', phone: '09173332211', stamps: 10, history: [{ date: '2026-11-02', type: 'earn', stamps: 4, note: 'Order #LA-2950' }, { date: '2026-11-21', type: 'earn', stamps: 6, note: 'Order #LA-3095' }] },
+    { id: 'LOY-1007', name: 'Miguel Tan', phone: '09195554321', stamps: 13, history: [{ date: '2026-09-14', type: 'earn', stamps: 7, note: 'Order #LA-2501' }, { date: '2026-11-15', type: 'earn', stamps: 6, note: 'Order #LA-3044' }] },
+    { id: 'LOY-1008', name: 'Sofia Lim', phone: '09162228899', stamps: 4, history: [{ date: '2026-11-19', type: 'earn', stamps: 4, note: 'Order #LA-3070' }] }
+  ];
+
+  // Span from Oct 1, 2025 through today (at least Nov 26, 2026 = 422 days)
+  const startDate = new Date(2025, 9, 1, 12, 0, 0, 0);
+  const now = new Date();
+  const minEnd = new Date(2026, 10, 26, 12, 0, 0, 0);
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+  const endDate = todayLocal > minEnd ? todayLocal : minEnd;
+  const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000);
+
+  let orderSeq = 1;
+
+  const highRunners = [
+    'spanish-latte-iced', 'americano-hot', 'americano-iced', 'cafe-latte-iced',
+    'caramel-macchiato-iced', 'classic-matcha-iced', 'pastry-brownies',
+    'pasta-lasagna', 'sand-triple-cheese', 'cake-biscoff'
+  ];
+  const midRunners = [
+    'double-choco-hot', 'double-choco-iced', 'strawberry-matcha-iced',
+    'chia-green-tea-iced', 'honey-citron-iced', 'pastry-crinkles',
+    'pasta-macaroni', 'sand-egg-cheese', 'dessert-affogato',
+    'cafe-latte-hot', 'spanish-latte-hot', 'sand-ham-cheese'
+  ];
+  const allProductIds = defaultProducts.map(p => p.id);
+  const promoPool = ['COFFEE10', 'WOOD50', 'WELCOME20'];
+
+  for (let dayIdx = 0; dayIdx <= totalDays; dayIdx++) {
+    const curDate = new Date(startDate);
+    curDate.setDate(startDate.getDate() + dayIdx);
+    const dateStr = toLocalYMD(curDate);
+    const dayOfWeek = curDate.getDay();
+    const month = curDate.getMonth();
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const isHolidayPeak = (month === 11 || month === 3 || month === 4); // Dec, Apr, May
+
+    // Daily order volume: 12-17 weekdays, 18-24 weekends (+2 in peak months) for healthy positive margins
+    const baseCount = isWeekend ? (18 + ((dayIdx * 3) % 7)) : (12 + ((dayIdx * 5) % 6));
+    const count = baseCount + (isHolidayPeak && (dayIdx % 2 === 0) ? 2 : 0);
+
+    for (let i = 0; i < count; i++) {
+      const orderId = `#LA-${String(orderSeq++).padStart(4, '0')}`;
+
+      let hour;
+      const slot = (i + dayIdx) % 10;
+      if (slot < 4) hour = 7 + (i % 4);
+      else if (slot < 7) hour = 11 + (i % 3);
+      else if (slot < 9) hour = 14 + (i % 4);
+      else hour = 18 + (i % 3);
+
+      const minute = ((i * 17 + dayIdx * 13) % 55);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const dispHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const timeStr = `${dispHour}:${String(minute).padStart(2, '0')} ${ampm}`;
+
+      const orderDateObj = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate(), hour, minute, 0, 0);
+
+      const numItems = ((i + dayIdx) % 3 === 0) ? 2 : (((i + dayIdx) % 5 === 0) ? 3 : 1);
+      const cartSnapshot = [];
+
+      for (let k = 0; k < numItems; k++) {
+        let pId;
+        if (k === 0) {
+          pId = highRunners[(i + k + dayIdx) % highRunners.length];
+        } else if (k === 1) {
+          pId = ((i + k) % 2 === 0) ? midRunners[(i + dayIdx) % midRunners.length] : highRunners[(dayIdx + 3) % highRunners.length];
+        } else {
+          pId = allProductIds[(i * 3 + k + dayIdx) % allProductIds.length];
+        }
+
+        const prod = defaultProducts.find(p => p.id === pId) || defaultProducts[0];
+        const isCoffee = prod.category === 'Coffee-Based';
+        const isBev = ['Coffee-Based', 'Chocolate', 'Matcha', 'Tea-Based'].includes(prod.category);
+
+        let mods = { roast: 'None', milk: 'None', addons: [], syrup: [] };
+        let modExtra = 0;
+
+        if (isCoffee) {
+          const roast = ((i + k) % 3 === 0) ? 'Puissant (Bold)' : 'Harmonie (Smooth)';
+          const useOat = ((i + k) % 5 === 0);
+          const milk = useOat ? 'Oat milk' : 'Whole milk';
+          if (useOat) modExtra += 40;
+
+          const addons = [];
+          if ((i + k) % 7 === 0) { addons.push('Extra shot'); modExtra += 40; }
+          mods = { roast, milk, addons, syrup: [] };
+        } else if (isBev) {
+          const useOat = ((i + k) % 6 === 0);
+          mods = { roast: 'None', milk: useOat ? 'Oat milk' : 'Whole milk', addons: [], syrup: [] };
+          if (useOat) modExtra += 40;
+        } else {
+          mods = { prep: 'Warmed / Toasted', cutlery: ['Include Wooden Cutlery'], milk: 'None', roast: 'None', addons: [], syrup: [] };
+        }
+
+        const isComp = (orderSeq % 67 === 0 && k === 0);
+        cartSnapshot.push({
+          cartItemId: `c-sim-${orderSeq}-${k}`,
+          id: prod.id,
+          name: prod.name,
+          basePrice: prod.price,
+          price: isComp ? 0 : (prod.price + modExtra),
+          isComp,
+          qty: 1,
+          mods
+        });
+      }
+
+      const grossSubtotal = cartSnapshot.reduce((sum, item) => sum + ((item.isComp ? 0 : item.price) * item.qty), 0);
+      let orderCOGS = 0;
+      let complimentaryCost = 0;
+      cartSnapshot.forEach(item => {
+        const itemCogs = calculateProductCOGS(item.id, item.mods) * item.qty;
+        if (item.isComp) complimentaryCost += itemCogs;
+        else orderCOGS += itemCogs;
+      });
+
+      let discountType = 'none';
+      let discountAmount = 0;
+      let vatableSales = 0;
+      let vatAmount = 0;
+      let vatExemptSales = 0;
+      let totalPayable = grossSubtotal;
+      let idType = '';
+      let idLastDigits = '';
+      let promoCode = '';
+
+      const discRoll = (orderSeq + dayIdx) % 20;
+      if (grossSubtotal > 0 && (discRoll === 1 || discRoll === 7)) {
+        discountType = 'senior';
+        idType = 'Senior Citizen ID';
+        idLastDigits = String(1000 + ((orderSeq * 73) % 9000));
+        vatExemptSales = grossSubtotal;
+        const netOfVat = grossSubtotal / 1.12;
+        discountAmount = Math.round(netOfVat * 0.20 * 100) / 100;
+        totalPayable = Math.round((netOfVat * 0.80) * 100) / 100;
+        vatableSales = 0;
+        vatAmount = 0;
+      } else if (grossSubtotal > 0 && discRoll === 3) {
+        discountType = 'pwd';
+        idType = 'PWD ID';
+        idLastDigits = String(1000 + ((orderSeq * 37) % 9000));
+        vatExemptSales = grossSubtotal;
+        const netOfVat = grossSubtotal / 1.12;
+        discountAmount = Math.round(netOfVat * 0.20 * 100) / 100;
+        totalPayable = Math.round((netOfVat * 0.80) * 100) / 100;
+        vatableSales = 0;
+        vatAmount = 0;
+      } else if (grossSubtotal > 0 && discRoll === 11) {
+        discountType = 'promo';
+        promoCode = promoPool[(orderSeq + dayIdx) % promoPool.length];
+        if (promoCode === 'WOOD50') {
+          discountAmount = Math.min(grossSubtotal, 50);
+        } else if (promoCode === 'WELCOME20' && grossSubtotal >= 150) {
+          discountAmount = Math.min(100, Math.round(grossSubtotal * 0.20 * 100) / 100);
+        } else {
+          promoCode = 'COFFEE10';
+          discountAmount = Math.round(grossSubtotal * 0.10 * 100) / 100;
+        }
+        totalPayable = Math.round(Math.max(0, grossSubtotal - discountAmount) * 100) / 100;
+        vatableSales = Math.round((totalPayable / 1.12) * 100) / 100;
+        vatAmount = Math.round((totalPayable - vatableSales) * 100) / 100;
+      } else {
+        vatableSales = Math.round((totalPayable / 1.12) * 100) / 100;
+        vatAmount = Math.round((totalPayable - vatableSales) * 100) / 100;
+      }
+
+      let payment = 'Cash';
+      let referenceNumber = '';
+      let paymentProvider = 'Cash';
+      const payRoll = (orderSeq * 3) % 10;
+      if (payRoll < 4) {
+        payment = 'Cash';
+      } else if (payRoll < 8) {
+        payment = 'GCash';
+        referenceNumber = `GC-${700000000 + ((orderSeq * 12345) % 299999999)}`;
+        paymentProvider = 'GCash';
+      } else if (payRoll === 8) {
+        payment = 'Maya';
+        referenceNumber = `MY-${10000000 + ((orderSeq * 54321) % 89999999)}`;
+        paymentProvider = 'Maya';
+      } else {
+        payment = 'Card';
+        referenceNumber = `TX-${100000 + ((orderSeq * 987) % 899999)}`;
+        paymentProvider = 'BDO Terminal';
+      }
+
+      let status = 'Completed';
+      let voidReason = '';
+      let voidDisposition = '';
+      const statusRoll = (orderSeq * 7) % 100;
+      if (statusRoll < 2) {
+        status = 'Voided';
+        voidReason = 'Customer changed drink before espresso pulled';
+        voidDisposition = 'Balik-Inventory (Restocked)';
+      } else if (statusRoll === 2 || statusRoll === 3) {
+        status = 'Waste / Lugi';
+        voidReason = 'Steamed milk spilled or wrong temperature';
+        voidDisposition = 'Waste (Lugi)';
+      }
+
+      let customer = 'Guest Customer';
+      let loyaltyId = null;
+      if (orderSeq % 4 === 0) {
+        const mem = simLoyalty[orderSeq % simLoyalty.length];
+        customer = mem.name;
+        loyaltyId = mem.id;
+      }
+
+      simOrders.push({
+        id: orderId,
+        date: dateStr,
+        time: timeStr,
+        timestamp: orderDateObj.toISOString(),
+        items: cartSnapshot.map(item => `${item.name}${item.isComp ? ' [Complimentary Item (₱0.00)]' : ''}${item.qty > 1 ? ` × ${item.qty}` : ''}`).join(', '),
+        cartSnapshot,
+        service: ((i + dayIdx) % 3 === 0) ? 'Takeaway' : 'Dine in',
+        payment,
+        referenceNumber,
+        paymentProvider,
+        grossTotal: grossSubtotal,
+        discountType,
+        discountAmount,
+        complimentaryCost: Math.round(complimentaryCost * 100) / 100,
+        idType,
+        idLastDigits,
+        promoCode,
+        vatableSales,
+        vatAmount,
+        vatExemptSales,
+        total: totalPayable,
+        cogs: Math.round(orderCOGS * 100) / 100,
+        status,
+        customer,
+        loyaltyId,
+        voidReason,
+        voidDisposition
+      });
+    }
+
+    // Monthly OpEx, Stock-In, and Spoilage across the 1-year+ span
+    const dom = curDate.getDate();
+    const ym = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}`;
+    if (dom === 1) {
+      simOpEx.push({ id: `OPX-RENT-${ym}`, date: dateStr, category: 'Shop Rent', amount: 22000.00, method: 'Bank Transfer', description: `${ym} Storefront commercial lease` });
+      simStockIn.push({ id: `STK-BEANS-${ym}`, date: dateStr, ingredientId: 1, ingredientName: 'Espresso Beans (Benguet Arabica)', supplier: 'Benguet Direct Roasters', qtyAdded: 6000, unit: 'g', totalCost: 5880.00, newUnitCost: 0.98 });
+    }
+    if (dom === 5) {
+      const utilAmt = 5400 + ((curDate.getMonth() * 190) % 900);
+      simOpEx.push({ id: `OPX-UTIL-${ym}`, date: dateStr, category: 'Utilities (Power & Water)', amount: utilAmt, method: 'GCash', description: `${ym} commercial electricity & water billing` });
+      simStockIn.push({ id: `STK-MILK-${ym}`, date: dateStr, ingredientId: 2, ingredientName: 'Fresh Whole Milk', supplier: 'Hacienda Dairy Co.', qtyAdded: 20000, unit: 'ml', totalCost: 1900.00, newUnitCost: 0.095 });
+    }
+    if (dom === 15) {
+      simOpEx.push({ id: `OPX-PAY1-${ym}`, date: dateStr, category: 'Barista Wages & Labor', amount: 11500.00, method: 'Bank Transfer', description: `Mid-month staff payroll (${ym})` });
+      simStockIn.push({ id: `STK-CUPS-${ym}`, date: dateStr, ingredientId: 13, ingredientName: 'Cold Cup (16 oz) & Sip Lid', supplier: 'EcoPackaging Manila', qtyAdded: 400, unit: 'pcs', totalCost: 2200.00, newUnitCost: 5.50 });
+      simSpoilage.push({
+        id: `SPL-M1-${ym}`,
+        date: dateStr,
+        timestamp: new Date(curDate.getFullYear(), curDate.getMonth(), dom, 18, 0, 0).toISOString(),
+        ingredientId: 18,
+        ingredientName: 'Fresh Bakery / Pastry Batch',
+        qty: 5 + (curDate.getMonth() % 4),
+        unit: 'pcs',
+        unitCost: 35.00,
+        totalCost: (5 + (curDate.getMonth() % 4)) * 35.00,
+        reason: 'Expired Shelf-Life (Unsold)',
+        notes: 'Day-end unsold pastries'
+      });
+    }
+    if (dom === 25) {
+      simOpEx.push({ id: `OPX-CLN-${ym}`, date: dateStr, category: 'Cleaning & Paper Supplies', amount: 950.00, method: 'Petty Cash', description: `Sanitation supplies, napkins & bar cloths (${ym})` });
+      simSpoilage.push({
+        id: `SPL-M2-${ym}`,
+        date: dateStr,
+        timestamp: new Date(curDate.getFullYear(), curDate.getMonth(), dom, 14, 30, 0).toISOString(),
+        ingredientId: 2,
+        ingredientName: 'Fresh Whole Milk',
+        qty: 1000,
+        unit: 'ml',
+        unitCost: 0.095,
+        totalCost: 95.00,
+        reason: 'Damaged / Dropped',
+        notes: 'Spilled milk carton during rush'
+      });
+    }
+    if (dom === 28) {
+      simOpEx.push({ id: `OPX-PAY2-${ym}`, date: dateStr, category: 'Barista Wages & Labor', amount: 11500.00, method: 'Bank Transfer', description: `End-of-month staff payroll (${ym})` });
+    }
+    if (dayIdx % 4 === 0) {
+      simOpEx.push({ id: `OPX-ICE-${dayIdx}`, date: dateStr, category: 'Ice Delivery', amount: 350.00, method: 'Petty Cash', description: '5 bags tube ice for cold beverage station' });
+    }
+  }
+
+  // Newest first so renderOrders slice(0, 100) and ledgers show latest entries at the top
+  simOrders.reverse();
+  simOpEx.reverse();
+  simStockIn.reverse();
+  simSpoilage.reverse();
+
+  return {
+    orders: simOrders,
+    opexLedger: simOpEx,
+    stockInHistory: simStockIn,
+    spoilageLedger: simSpoilage,
+    loyaltyMembers: simLoyalty
+  };
+}
+
+function loadOneYearDataset() {
+  const data = generateOneYearDataset();
+  orders = data.orders;
+  opexLedger = data.opexLedger;
+  stockInHistory = data.stockInHistory;
+  spoilageLedger = data.spoilageLedger;
+  loyaltyMembers = data.loyaltyMembers;
+  if (typeof localStorage !== 'undefined') {
+    try { localStorage.removeItem('la-1yr-cleared'); } catch (e) {}
+  }
+  saveAll();
+  renderPortalPulse();
+  renderOrders();
+  renderFinance();
+  renderVisualAnalytics();
+  renderExecutiveReport();
+  renderInventory();
+  updateLoyaltyCustomerDisplay();
+  return data;
+}
+
+const loadTwoMonthsSimulation = loadOneYearDataset;
+
+function clearAllToZeroBaseline() {
+  orders = [];
+  opexLedger = [];
+  stockInHistory = [];
+  spoilageLedger = [];
+  pendingTickets = [];
+  activeCart = [];
+  activeLoyaltyMember = null;
+  appliedDiscount = { type: 'none', idType: '', idLastDigits: '', promoCode: '', promoDiscount: 0 };
+  loyaltyMembers.forEach(m => { m.stamps = 0; m.history = []; });
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.removeItem('la-spoilage');
+      localStorage.setItem('la-1yr-cleared', 'true');
+    } catch (e) {}
+  }
+  saveAll();
+  renderPortalPulse();
+  renderOrders();
+  renderFinance();
+  renderVisualAnalytics();
+  renderExecutiveReport();
+  renderInventory();
+  renderCart();
+  updateLoyaltyCustomerDisplay();
+}
+
+// Auto-seed 1-year+ dataset on fresh load when localStorage is empty (or in Node)
+if (orders.length === 0 && !readStore('la-1yr-cleared', false)) {
+  const seeded = generateOneYearDataset();
+  orders = seeded.orders;
+  opexLedger = seeded.opexLedger;
+  stockInHistory = seeded.stockInHistory;
+  spoilageLedger = seeded.spoilageLedger;
+  loyaltyMembers = seeded.loyaltyMembers;
   saveAll();
 }
 
@@ -916,7 +1303,7 @@ function getFilterDateRange(rangeType) {
     const isFirstHalf = now.getMonth() < 6;
     start.setMonth(isFirstHalf ? 0 : 6, 1);
     start.setHours(0, 0, 0, 0);
-    end.setMonth(isFirstHalf ? 5 : 11, 30);
+    end.setMonth(isFirstHalf ? 5 : 11, isFirstHalf ? 30 : 31);
     end.setHours(23, 59, 59, 999);
   } else if (rangeType === 'year') {
     start.setMonth(0, 1);
@@ -1462,7 +1849,11 @@ function renderExecutiveReport() {
   const windowWasteLoss = windowWastedOrders.reduce((sum, o) => sum + (o.cogs || 0), 0);
   const totalOperationalWaste = windowSpoilageLoss + windowWasteLoss;
 
-  const totalOpEx = opexLedger.reduce((sum, e) => sum + e.amount, 0);
+  const windowOpEx = opexLedger.filter(e => {
+    const eDate = new Date((e.date || '').includes('T') ? e.date : `${e.date}T12:00:00`);
+    return eDate >= start && eDate <= end;
+  });
+  const totalOpEx = windowOpEx.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const operatingProfit = netSales - totalCOGS - totalCompGoodwill - totalOperationalWaste - totalOpEx;
   const marginPct = netSales > 0 ? ((operatingProfit / netSales) * 100).toFixed(2) : '0.00';
   const footfall = windowOrders.length;
@@ -1577,7 +1968,7 @@ function renderFinance() {
   const grossProfit = netSales - totalCOGS - totalCompGoodwill - totalOperationalWaste;
   const grossMargin = netSales > 0 ? ((grossProfit / netSales) * 100).toFixed(1) : '0.0';
 
-  const totalOpEx = opexLedger.reduce((sum, e) => sum + e.amount, 0);
+  const totalOpEx = opexLedger.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const operatingProfit = grossProfit - totalOpEx;
 
   const totalInflow = netSales;
@@ -3083,8 +3474,8 @@ function initApp() {
 
   
   $('#btn-seed-sim-portal')?.addEventListener('click', () => {
-    loadTwoMonthsSimulation();
-    notify('Loaded 2-month realistic dataset (600+ orders, OpEx & inventory).');
+    loadOneYearDataset();
+    notify('Loaded 1-year+ realistic testing dataset (Oct 2025 – Nov 2026+).');
   });
   $('#btn-clear-sim-portal')?.addEventListener('click', () => {
     clearAllToZeroBaseline();
@@ -3519,6 +3910,13 @@ const LeAugemPOS = {
   calculateProductCOGS,
   deductInventoryForCart,
   restoreInventoryForOrder,
+  generateOneYearDataset,
+  loadOneYearDataset,
+  clearAllToZeroBaseline,
+  getOrders: () => orders,
+  getOpexLedger: () => opexLedger,
+  getStockInHistory: () => stockInHistory,
+  getLoyaltyMembers: () => loyaltyMembers,
   recordSpoilageDiscard,
   getSpoilageLedger: () => spoilageLedger,
   getEligibleDrinkInCart,
