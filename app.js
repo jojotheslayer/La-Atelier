@@ -125,8 +125,8 @@ const defaultRecipes = {
   'dessert-affogato': [{ ingredientId: 1, qty: 18, unit: 'g' }, { ingredientId: 20, qty: 80, unit: 'g' }]
 };
 
-// Storage helper with 2-month simulation dataset & stress test support
-const APP_STORE_VERSION = 'v5_2months_simulation_dataset';
+// Storage helper with strict blank-slate baseline
+const APP_STORE_VERSION = 'v6_blank_slate_baseline';
 
 const readStore = (key, fallback) => {
   try {
@@ -137,10 +137,17 @@ const readStore = (key, fallback) => {
       localStorage.removeItem('la-menu-groups');
       localStorage.removeItem('cg-inventory');
       localStorage.removeItem('cg-orders');
+      localStorage.removeItem('la-loyalty');
       localStorage.removeItem('la-opex');
       localStorage.removeItem('la-stockin');
       localStorage.removeItem('la-pending-tickets');
       localStorage.removeItem('la-spoilage');
+      localStorage.removeItem('la-promos');
+      localStorage.removeItem('la-shift');
+      localStorage.removeItem('la-active-cart');
+      localStorage.removeItem('la-active-service');
+      localStorage.removeItem('la-active-loyalty-id');
+      localStorage.removeItem('la-applied-discount');
       localStorage.setItem('la-version', APP_STORE_VERSION);
     }
     const val = localStorage.getItem(key);
@@ -156,16 +163,13 @@ let menuGroups = readStore('la-menu-groups', [...new Set(defaultProducts.map(p =
 let inventory = readStore('cg-inventory', defaultInventory);
 let recipes = readStore('la-recipes', defaultRecipes);
 
-// Orders and Financials start strictly from 0
+// Orders, Financials, and Loyalty start strictly from 0
 let orders = readStore('cg-orders', []);
 let opexLedger = readStore('la-opex', []);
 let stockInHistory = readStore('la-stockin', []);
 let spoilageLedger = readStore('la-spoilage', []);
 let pendingTickets = readStore('la-pending-tickets', []);
-let loyaltyMembers = readStore('la-loyalty', [
-  { id: 'LOY-1001', name: 'Alex Reyes', phone: '09171234567', stamps: 0, history: [] },
-  { id: 'LOY-1002', name: 'Maria Santos', phone: '09189876543', stamps: 0, history: [] }
-]);
+let loyaltyMembers = readStore('la-loyalty', []);
 
 const defaultPromos = [
   { id: 'PRM-001', code: 'COFFEE10', name: '10% Off Entire Order', type: 'percentage', value: 10, minSpend: 0, maxCap: 0, active: true },
@@ -185,6 +189,7 @@ let activeItemGroup = 'All';
 let activeInventoryFilter = 'All';
 let activeOrderFilter = 'all';
 let activeAnalyticsRange = 'today';
+let activeDashboardTab = 'sales';
 let savedLoyaltyId = readStore('la-active-loyalty-id', null);
 let activeLoyaltyMember = savedLoyaltyId ? (loyaltyMembers.find(m => m.id === savedLoyaltyId) || null) : null;
 let appliedDiscount = readStore('la-applied-discount', { type: 'none', idType: '', idLastDigits: '', promoCode: '', promoDiscount: 0 });
@@ -486,13 +491,13 @@ function renderSubcategories() {
     let icon = '';
     let label = v;
     if (v === 'All') label = activeCategory === 'All' ? 'All Variants' : `All ${activeCategory}`;
-    if (v === 'Hot') { icon = '🔥 '; label = 'Hot (8 oz)'; }
-    if (v === 'Iced') { icon = '🧊 '; label = 'Iced (16 oz)'; }
-    if (v === 'Special') { icon = '🍝 '; label = "Chef's Specials"; }
-    if (v === 'Sandwich') { icon = '🥪 '; label = 'Sandwiches'; }
-    if (v === 'Pastry') { icon = '🥐 '; label = 'Pastries'; }
-    if (v === 'Cake') { icon = '🍰 '; label = 'Cakes'; }
-    if (v === 'Dessert') { icon = '🍨 '; label = 'Desserts'; }
+    if (v === 'Hot') { label = 'Hot (8 oz)'; }
+    if (v === 'Iced') { label = 'Iced (16 oz)'; }
+    if (v === 'Special') { label = "Chef's Specials"; }
+    if (v === 'Sandwich') { label = 'Sandwiches'; }
+    if (v === 'Pastry') { label = 'Pastries'; }
+    if (v === 'Cake') { label = 'Cakes'; }
+    if (v === 'Dessert') { label = 'Desserts'; }
 
     return `
       <button type="button" class="sub-tab ${activeSubcategory === v ? 'selected' : ''}" data-sub="${escapeHTML(v)}">
@@ -510,6 +515,78 @@ function renderSubcategories() {
   });
 }
 
+// --- UI-only helpers: presentation of menu items (no business logic) ---
+function uiSlug(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+// "Café Latte (Hot 8 oz)" -> { title: "Café Latte", size: "8 oz" }
+function splitProductName(name) {
+  const match = String(name || '').match(/^(.*?)\s*\((?:Hot|Iced)\s*([^)]*)\)\s*$/i);
+  if (!match) return { title: name, size: '' };
+  return { title: match[1], size: match[2].trim() };
+}
+
+function productKind(p) {
+  const v = String(p.variant || '').toLowerCase();
+  if (v === 'hot') return 'hot';
+  if (v === 'iced') return 'iced';
+  if (v === 'pastry') return 'pastry';
+  if (v === 'cake' || v === 'dessert') return 'cake';
+  if (v === 'sandwich') return 'sandwich';
+  if (v === 'special') return 'bowl';
+  return 'other';
+}
+
+function productIllustration(p) {
+  if (p.customIcon) {
+    return p.emoji
+      ? `<span class="product-emoji" aria-hidden="true">${escapeHTML(p.emoji)}</span>`
+      : '';
+  }
+
+  const art = {
+    hot: `
+      <path class="art-steam" d="M52 22c-5 6 5 9 0 15M66 18c-5 6 5 9 0 15"/>
+      <ellipse class="art-plate" cx="60" cy="86" rx="36" ry="6"/>
+      <path class="art-handle" d="M85 52h5a9 9 0 0 1 0 18h-7"/>
+      <path class="art-vessel" d="M34 46h52v14a24 24 0 0 1-24 24h-4a24 24 0 0 1-24-24V46Z"/>
+      <ellipse class="art-liquid" cx="60" cy="46" rx="26" ry="5"/>
+      <ellipse class="art-foam" cx="60" cy="46" rx="12" ry="2.2"/>`,
+    iced: `
+      <path class="art-straw" d="M69 6 62 40"/>
+      <path class="art-glass" d="M40 28h40l-5.2 62H45.2Z"/>
+      <path class="art-liquid" d="M42 50h36l-3.4 38H45.4Z"/>
+      <path class="art-milk" d="M41.4 42h37.2l-.6 8H42Z"/>
+      <rect class="art-ice" x="47" y="36" width="11" height="11" rx="2.5" transform="rotate(-14 52.5 41.5)"/>
+      <rect class="art-ice" x="61" y="40" width="10" height="10" rx="2.5" transform="rotate(12 66 45)"/>
+      <path class="art-rim" d="M38 28h44"/>`,
+    pastry: `
+      <ellipse class="art-plate" cx="60" cy="84" rx="40" ry="6"/>
+      <path class="art-food" d="M20 72c5-24 25-38 40-38s35 14 40 38c-9 5-18 2-24-5-5 6-10 9-16 9s-11-3-16-9c-6 7-15 10-24 5Z"/>
+      <path class="art-detail" d="M46 42l6 30M74 42l-6 30M60 35v40"/>`,
+    cake: `
+      <ellipse class="art-plate" cx="60" cy="84" rx="40" ry="6"/>
+      <path class="art-food" d="M26 78V52l68-18v44Z"/>
+      <path class="art-cream" d="M26 52l68-18v9L26 61Z"/>
+      <path class="art-cream" d="M26 68l68-10v5L26 73Z"/>
+      <circle class="art-berry" cx="72" cy="32" r="6"/>`,
+    sandwich: `
+      <ellipse class="art-plate" cx="60" cy="84" rx="40" ry="6"/>
+      <path class="art-food" d="M22 78 58 30l36 48Z"/>
+      <path class="art-fill" d="M30 70h56"/>
+      <path class="art-cream" d="M34 64h48l-3-4H37Z"/>`,
+    bowl: `
+      <path class="art-steam" d="M50 18c-5 6 5 9 0 15M66 14c-5 6 5 9 0 15"/>
+      <path class="art-food" d="M30 50c4-10 14-12 20-6 6-8 18-8 22 0 6-6 16-2 18 6Z"/>
+      <path class="art-vessel" d="M22 50h76a38 32 0 0 1-76 0Z"/>
+      <path class="art-detail" d="M40 46c4-6 10 2 14-3s10 2 14-2 8 2 10 4"/>`,
+  }[productKind(p)];
+
+  if (!art) return `<span class="product-emoji" aria-hidden="true">${escapeHTML(p.emoji || '☕')}</span>`;
+  return `<svg class="product-svg" viewBox="0 0 120 100" aria-hidden="true">${art}</svg>`;
+}
+
 function renderProducts() {
   const searchEl = $('#menu-search');
   const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
@@ -524,18 +601,30 @@ function renderProducts() {
   const grid = $('#product-grid');
   if (!grid) return;
 
-  grid.innerHTML = filtered.length ? filtered.map(p => `
-    <div class="product-card" data-product-id="${escapeHTML(p.id)}" role="button" tabindex="0" aria-label="Customize and add ${escapeHTML(p.name)}">
-      <div class="product-art">
-        <span class="product-badge">${escapeHTML(p.variant || 'Standard')}</span>
-        ${p.image ? `<img class="product-image" src="${escapeHTML(p.image)}" alt="">` : `<span class="product-emoji">${escapeHTML(p.emoji || '☕')}</span>`}
+  grid.innerHTML = filtered.length ? filtered.map(p => {
+    const { title, size } = splitProductName(p.name);
+    const badge = [p.variant, size].filter(Boolean).join(' · ') || 'Standard';
+    return `
+    <div class="product-card" data-product-id="${escapeHTML(p.id)}" role="button" tabindex="0" aria-label="Add ${escapeHTML(p.name)}, ${peso(p.price)}">
+      <div class="product-art" data-cat="${escapeHTML(uiSlug(p.category))}" data-kind="${escapeHTML(productKind(p))}">
+        ${p.image ? `<img class="product-image" src="${escapeHTML(p.image)}" alt="">` : productIllustration(p)}
+        <span class="product-badge">${escapeHTML(badge)}</span>
       </div>
       <div class="product-copy">
-        <strong>${escapeHTML(p.name)}</strong>
-        <span>${escapeHTML(p.detail || '')}<b>${peso(p.price)}</b></span>
+        <strong>${escapeHTML(title)}</strong>
+        <span class="product-detail">${escapeHTML(p.detail || '')}</span>
+        <span class="product-foot">
+          <b class="product-price">${peso(p.price)}</b>
+          <span class="product-add" aria-hidden="true">+</span>
+        </span>
       </div>
     </div>
-  `).join('') : '<div class="no-results">No menu items found for this selection.</div>';
+  `;
+  }).join('') : `
+    <div class="no-results">
+      <strong>${query ? `Nothing matches “${escapeHTML(query)}”` : 'No items here yet'}</strong>
+      <span>${query ? 'Try another word, or pick a different category.' : 'Add items to this group from Back office → Menu &amp; recipes.'}</span>
+    </div>`;
 
   $$('#product-grid .product-card').forEach(card => {
     const pid = card.dataset.productId;
@@ -650,9 +739,9 @@ function renderCart() {
   if (totalCount === 0) {
     itemsContainer.innerHTML = `
       <div class="empty-cart">
-        <div class="empty-icon">☕</div>
-        <strong>No drinks or food selected</strong>
-        <p>Select items from the Le Augem menu to start order.</p>
+        <svg class="empty-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 18h24v8a12 12 0 0 1-12 12h0a12 12 0 0 1-12-12v-8Z"/><path d="M34 21h2a5 5 0 0 1 0 10h-3"/><path d="M18 8c-2 3 2 4 0 7M25 6c-2 3 2 4 0 7"/></svg>
+        <strong>Order is empty</strong>
+        <p>Tap a drink or food item to start.</p>
       </div>
     `;
   } else {
@@ -663,24 +752,28 @@ function renderCart() {
       if (item.mods.addons && item.mods.addons.length) modLabels.push(...item.mods.addons.map(a => `+${a}`));
       if (item.mods.syrup && item.mods.syrup.length) modLabels.push(...item.mods.syrup.map(s => `+${s.replace(' syrup', '')}`));
 
+      const canEditMods = ['Coffee-Based', 'Chocolate', 'Matcha', 'Tea-Based'].includes(products.find(p => p.id === item.id)?.category);
       return `
         <div class="cart-item ${item.isComp ? 'cart-item-comp' : ''}">
           <div class="cart-item-info">
-            <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+            <div class="cart-item-title">
               <strong>${escapeHTML(item.name)}</strong>
-              ${item.isComp ? '<span class="comp-badge">Complimentary Item</span>' : ''}
-              <button type="button" class="cart-comp-btn ${item.isComp ? 'active' : ''}" data-comp-item="${item.cartItemId}" title="Toggle Complimentary Item">🎁 Comp</button>
-              ${['Coffee-Based', 'Chocolate', 'Matcha', 'Tea-Based'].includes(products.find(p => p.id === item.id)?.category) ? `
-                <button type="button" class="cart-mod-btn" data-edit-mods="${item.cartItemId}" title="Edit modifications">✎ Mods</button>
-              ` : ''}
+              ${item.isComp ? '<span class="comp-badge">Comp</span>' : ''}
             </div>
-            ${modLabels.length ? `<span class="cart-item-mods">${escapeHTML(modLabels.join(', '))}</span>` : ''}
-            <small>${item.isComp ? '<b style="color:var(--accent-green, #2e7d32);">Complimentary Item (₱0.00)</b>' : `${peso(item.price)} × ${item.qty} = <b>${peso(item.price * item.qty)}</b>`}</small>
+            ${modLabels.length ? `<span class="cart-item-mods">${escapeHTML(modLabels.join(' · '))}</span>` : ''}
+            <div class="cart-item-actions">
+              <small>${item.isComp ? 'On the house' : `${peso(item.price)} each`}</small>
+              ${canEditMods ? `<button type="button" class="cart-mod-btn" data-edit-mods="${item.cartItemId}" title="Change milk, roast or add-ons">Edit</button>` : ''}
+              <button type="button" class="cart-comp-btn ${item.isComp ? 'active' : ''}" data-comp-item="${item.cartItemId}" aria-pressed="${item.isComp ? 'true' : 'false'}" title="Give this item for free">Comp</button>
+            </div>
           </div>
-          <div class="qty-controls">
-            <button class="cart-qty-btn" data-cart-item="${item.cartItemId}" data-step="-1" aria-label="Decrease quantity">−</button>
-            <span>${item.qty}</span>
-            <button class="cart-qty-btn" data-cart-item="${item.cartItemId}" data-step="1" aria-label="Increase quantity">＋</button>
+          <div class="cart-item-side">
+            <span class="cart-line-total">${item.isComp ? '₱0.00' : peso(item.price * item.qty)}</span>
+            <div class="qty-controls">
+              <button class="cart-qty-btn" data-cart-item="${item.cartItemId}" data-step="-1" aria-label="Remove one ${escapeHTML(item.name)}">−</button>
+              <span aria-live="polite">${item.qty}</span>
+              <button class="cart-qty-btn" data-cart-item="${item.cartItemId}" data-step="1" aria-label="Add one more ${escapeHTML(item.name)}">+</button>
+            </div>
           </div>
         </div>
       `;
@@ -1098,26 +1191,247 @@ function renderVisualAnalytics() {
     `).join('') : '<tr><td colspan="4" class="no-results">0 sales recorded in this period.</td></tr>';
   }
 
-  // Hourly Sales Table
+  // Date range labels (dashboard heading + hourly table)
+  const rangeText = describeRange(activeAnalyticsRange, start, end);
+  if ($('#analytics-range-label')) $('#analytics-range-label').textContent = rangeText.long;
+  if ($('#hourly-range-label')) $('#hourly-range-label').textContent = rangeText.short;
+
+  // Hourly Sales Table: latest hour first. For today, hide hours that haven't happened yet.
   if ($('#hourly-sales-rows')) {
-    $('#hourly-sales-rows').innerHTML = Object.entries(hourBuckets).map(([hour, data]) => {
-      const hourLabel = Number(hour) === 12 ? '12:00 PM' : Number(hour) > 12 ? `${Number(hour) - 12}:00 PM` : `${hour}:00 AM`;
+    const now = new Date();
+    const isToday = start.toDateString() === now.toDateString() && end.toDateString() === now.toDateString();
+    const currentHour = now.getHours();
+    const hours = Object.keys(hourBuckets).map(Number)
+      .filter(h => !isToday || h <= currentHour)
+      .sort((a, b) => b - a);
+
+    $('#hourly-sales-rows').innerHTML = hours.length ? hours.map(h => {
+      const data = hourBuckets[h];
+      const hourLabel = h === 12 ? '12:00 PM' : h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
       const share = totalOrders > 0 ? ((data.orders / totalOrders) * 100).toFixed(0) : '0';
+      const isNow = isToday && h === currentHour;
       return `
-        <tr>
-          <td><strong>${hourLabel}</strong></td>
-          <td>${data.orders} orders</td>
+        <tr class="${isNow ? 'row-now' : ''}">
+          <td><strong>${hourLabel}</strong>${isNow ? ' <span class="now-pill">Now</span>' : ''}</td>
+          <td>${data.orders} ${data.orders === 1 ? 'order' : 'orders'}</td>
           <td>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <div style="height:6px; width:${Math.min(100, Number(share) * 3)}px; background:var(--brick-primary); border-radius:3px;"></div>
+            <div class="share-cell">
+              <span class="share-track"><span class="share-fill" style="width:${Math.min(100, Number(share))}%"></span></span>
               <small>${share}%</small>
             </div>
           </td>
           <td><strong>${peso(data.revenue)}</strong></td>
         </tr>
       `;
-    }).join('');
+    }).join('') : '<tr><td colspan="4" class="no-results">The café opens at 7:00 AM. Hourly sales will appear here once the day starts.</td></tr>';
   }
+
+  renderExpensesDashboard(
+    start,
+    end,
+    rangeText,
+    windowOrders,
+    totalCOGS,
+    totalWindowWaste,
+    totalWindowGoodwill,
+    windowSpoilage.length,
+    windowWastedOrders.length
+  );
+}
+
+function parseEntryDate(entry) {
+  if (entry.timestamp) return new Date(entry.timestamp);
+  if (entry.date && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)) {
+    return new Date(entry.date + 'T12:00:00');
+  }
+  return new Date(entry.date || 0);
+}
+
+function renderExpensesDashboard(start, end, rangeText, windowOrders, totalCOGS, totalWindowWaste, totalWindowGoodwill, spoilageCount, wastedOrdersCount) {
+  const windowOpex = opexLedger.filter(e => {
+    const d = parseEntryDate(e);
+    return d >= start && d <= end;
+  });
+  const windowStockIn = stockInHistory.filter(s => {
+    const d = parseEntryDate(s);
+    return d >= start && d <= end;
+  });
+
+  const totalRevenue = windowOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const totalOpEx = windowOpex.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalStockIn = windowStockIn.reduce((sum, s) => sum + (Number(s.totalCost) || 0), 0);
+  const totalOutflows = totalOpEx + totalStockIn;
+
+  const cogsPct = totalRevenue > 0 ? ((totalCOGS / totalRevenue) * 100).toFixed(1) : '0.0';
+  const opexRatio = totalRevenue > 0 ? ((totalOpEx / totalRevenue) * 100).toFixed(1) : '0.0';
+  const netOperatingProfit = totalRevenue - totalCOGS - totalWindowGoodwill - totalWindowWaste - totalOpEx;
+  const netOperatingMargin = totalRevenue > 0 ? ((netOperatingProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+
+  if ($('#exp-total-opex')) $('#exp-total-opex').textContent = peso(totalOpEx);
+  if ($('#exp-opex-delta')) {
+    $('#exp-opex-delta').textContent = windowOpex.length === 0
+      ? '0 expenses recorded'
+      : `${windowOpex.length} ${windowOpex.length === 1 ? 'expense' : 'expenses'} recorded`;
+  }
+  if ($('#exp-total-cogs')) $('#exp-total-cogs').textContent = peso(totalCOGS);
+  if ($('#exp-cogs-delta')) $('#exp-cogs-delta').textContent = `${cogsPct}% of sales`;
+  if ($('#exp-total-spoilage')) $('#exp-total-spoilage').textContent = peso(totalWindowWaste);
+  if ($('#exp-spoilage-delta')) $('#exp-spoilage-delta').textContent = `${spoilageCount + wastedOrdersCount} waste events`;
+  if ($('#exp-net-margin')) {
+    const marginEl = $('#exp-net-margin');
+    marginEl.textContent = `${netOperatingMargin}%`;
+    marginEl.classList.toggle('text-accent', netOperatingProfit >= 0);
+    marginEl.classList.toggle('text-discount', netOperatingProfit < 0);
+  }
+  if ($('#exp-ratio-delta')) {
+    $('#exp-ratio-delta').textContent = `Expense-to-sales ratio: ${opexRatio}% (${peso(netOperatingProfit)} EBIT)`;
+  }
+  if ($('#exp-total-stockin')) $('#exp-total-stockin').textContent = peso(totalStockIn);
+  if ($('#exp-stockin-delta')) {
+    $('#exp-stockin-delta').textContent = `${windowStockIn.length} restock ${windowStockIn.length === 1 ? 'delivery' : 'deliveries'}`;
+  }
+  if ($('#exp-total-outflows')) $('#exp-total-outflows').textContent = peso(totalOutflows);
+  if ($('#exp-outflows-delta')) $('#exp-outflows-delta').textContent = `OpEx (${peso(totalOpEx)}) + Stock-In (${peso(totalStockIn)})`;
+
+  // 1. OpEx Breakdown by Category
+  const opexByCat = {};
+  windowOpex.forEach(e => {
+    const cat = e.category || 'Other OpEx';
+    opexByCat[cat] = (opexByCat[cat] || 0) + (Number(e.amount) || 0);
+  });
+  const expCatList = $('#exp-category-bars-list');
+  const expCatEmpty = $('#chart-exp-category-empty');
+  const sortedOpexCats = Object.entries(opexByCat).sort((a, b) => b[1] - a[1]);
+  if (sortedOpexCats.length === 0 || totalOpEx <= 0) {
+    if (expCatList) expCatList.innerHTML = '';
+    if (expCatEmpty) expCatEmpty.hidden = false;
+  } else {
+    if (expCatEmpty) expCatEmpty.hidden = true;
+    if (expCatList) {
+      expCatList.innerHTML = sortedOpexCats.map(([cat, amt]) => {
+        const share = totalOpEx > 0 ? ((amt / totalOpEx) * 100).toFixed(1) : '0.0';
+        return `
+          <div class="cat-bar-item">
+            <div class="cat-bar-header">
+              <span>${escapeHTML(cat)}</span>
+              <span><strong>${peso(amt)}</strong> (${share}%)</span>
+            </div>
+            <div class="cat-bar-track">
+              <div class="cat-bar-fill" style="width: ${Math.min(100, Number(share))}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 2. Expense Payment Method Share
+  const opexByMethod = {};
+  windowOpex.forEach(e => {
+    const method = e.method || 'Petty Cash';
+    opexByMethod[method] = (opexByMethod[method] || 0) + (Number(e.amount) || 0);
+  });
+  const expMethodList = $('#exp-method-bars-list');
+  const expMethodEmpty = $('#chart-exp-method-empty');
+  const sortedMethods = Object.entries(opexByMethod).sort((a, b) => b[1] - a[1]);
+  if (sortedMethods.length === 0 || totalOpEx <= 0) {
+    if (expMethodList) expMethodList.innerHTML = '';
+    if (expMethodEmpty) expMethodEmpty.hidden = false;
+  } else {
+    if (expMethodEmpty) expMethodEmpty.hidden = true;
+    if (expMethodList) {
+      expMethodList.innerHTML = sortedMethods.map(([method, amt]) => {
+        const share = totalOpEx > 0 ? ((amt / totalOpEx) * 100).toFixed(1) : '0.0';
+        return `
+          <div class="top5-item">
+            <div class="top5-header">
+              <span><strong>${escapeHTML(method)}</strong></span>
+              <span>${peso(amt)} (${share}%)</span>
+            </div>
+            <div class="top5-track">
+              <div class="exp-method-fill" style="width: ${Math.min(100, Number(share))}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 3. Cost Composition Donut (COGS vs OpEx vs Spoilage/Waste)
+  const totalCostPool = totalCOGS + totalOpEx + totalWindowWaste;
+  const costDonut = $('#svg-cost-donut');
+  const costLegend = $('#cost-legend-container');
+  const costEmpty = $('#chart-cost-empty');
+  if (totalCostPool <= 0) {
+    if (costDonut) costDonut.innerHTML = '';
+    if (costLegend) costLegend.innerHTML = '';
+    if (costEmpty) costEmpty.hidden = false;
+  } else {
+    if (costEmpty) costEmpty.hidden = true;
+    const cogsPctCost = Math.round((totalCOGS / totalCostPool) * 100);
+    const opexPctCost = Math.round((totalOpEx / totalCostPool) * 100);
+    const wastePctCost = Math.max(0, 100 - cogsPctCost - opexPctCost);
+
+    const circumference = 2 * Math.PI * 40;
+    const cogsDash = (cogsPctCost / 100) * circumference;
+    const opexDash = (opexPctCost / 100) * circumference;
+    const wasteDash = (wastePctCost / 100) * circumference;
+
+    if (costDonut) {
+      costDonut.innerHTML = `
+        <circle cx="80" cy="80" r="40" fill="transparent" stroke="#ddd" stroke-width="20"/>
+        <circle cx="80" cy="80" r="40" fill="transparent" stroke="#2c1a11" stroke-width="20"
+                stroke-dasharray="${cogsDash} ${circumference}" stroke-dashoffset="0" transform="rotate(-90 80 80)"/>
+        <circle cx="80" cy="80" r="40" fill="transparent" stroke="#b85333" stroke-width="20"
+                stroke-dasharray="${opexDash} ${circumference}" stroke-dashoffset="-${cogsDash}" transform="rotate(-90 80 80)"/>
+        <circle cx="80" cy="80" r="40" fill="transparent" stroke="#8a6700" stroke-width="20"
+                stroke-dasharray="${wasteDash} ${circumference}" stroke-dashoffset="-${cogsDash + opexDash}" transform="rotate(-90 80 80)"/>
+        <text x="80" y="83" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c1a11">${peso(totalCostPool)}</text>
+        <text x="80" y="96" text-anchor="middle" font-size="8.5" fill="#777">Total Cost</text>
+      `;
+    }
+    if (costLegend) {
+      costLegend.innerHTML = `
+        <div class="size-legend-item"><span class="legend-dot" style="background:#2c1a11;"></span><span>COGS: <strong>${cogsPctCost}%</strong> (${peso(totalCOGS)})</span></div>
+        <div class="size-legend-item"><span class="legend-dot" style="background:#b85333;"></span><span>OpEx: <strong>${opexPctCost}%</strong> (${peso(totalOpEx)})</span></div>
+        <div class="size-legend-item"><span class="legend-dot" style="background:#8a6700;"></span><span>Spoilage / Lugi: <strong>${wastePctCost}%</strong> (${peso(totalWindowWaste)})</span></div>
+      `;
+    }
+  }
+
+  // 4. Itemized Operating Expenses Table
+  if ($('#exp-table-range-label')) $('#exp-table-range-label').textContent = rangeText.short;
+  if ($('#exp-opex-rows')) {
+    $('#exp-opex-rows').innerHTML = windowOpex.length ? windowOpex.map(op => `
+      <tr>
+        <td>${escapeHTML(op.date)}</td>
+        <td><strong>${escapeHTML(op.category)}</strong></td>
+        <td>${escapeHTML(op.description)}</td>
+        <td><span class="service-pill">${escapeHTML(op.method)}</span></td>
+        <td><strong>${peso(op.amount)}</strong></td>
+      </tr>
+    `).join('') : '<tr><td colspan="5" class="no-results">No operating expenses recorded in this period (₱0.00).</td></tr>';
+  }
+}
+
+// UI-only: human-readable label for the selected date range
+function describeRange(rangeType, start, end) {
+  const now = new Date();
+  const sameYear = start.getFullYear() === now.getFullYear() && end.getFullYear() === now.getFullYear();
+  const fmt = d => d.toLocaleDateString('en-PH', sameYear
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+  const shownEnd = end > now ? now : end;   // don't promise future days
+
+  if (start.toDateString() === now.toDateString() && end.toDateString() === now.toDateString()) {
+    const day = now.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
+    return { long: `Showing today · ${day}`, short: `Today · ${day}` };
+  }
+  if (start.toDateString() === shownEnd.toDateString()) {
+    return { long: `Showing ${fmt(start)}`, short: fmt(start) };
+  }
+  const span = `${fmt(start)} – ${fmt(shownEnd)}${sameYear ? `, ${now.getFullYear()}` : ''}`;
+  return { long: `Showing ${span}`, short: `${span} · all days combined` };
 }
 
 // --- Executive Business Sales Report (Exact Layout from Reference Images 3–6) ---
@@ -1236,7 +1550,7 @@ function renderExecutiveReport() {
       <tr><td>Complimentary Items / Goodwill Cost</td><td><span class="text-discount">-${peso(totalCompGoodwill)}</span></td><td>${netSales > 0 ? ((totalCompGoodwill / netSales) * 100).toFixed(1) : '0.0'}%</td></tr>
       <tr><td>Operational Waste / Spoilage Loss (Lugi)</td><td><span class="text-discount">-${peso(totalOperationalWaste)}</span></td><td>${netSales > 0 ? ((totalOperationalWaste / netSales) * 100).toFixed(1) : '0.0'}%</td></tr>
       <tr><td>Operating Expenses (OpEx)</td><td><span class="text-discount">-${peso(totalOpEx)}</span></td><td>${netSales > 0 ? ((totalOpEx / netSales) * 100).toFixed(1) : '0.0'}%</td></tr>
-      <tr style="background:#faf8f5; font-weight:bold;">
+      <tr class="row-total">
         <td>Net Operating Profit</td>
         <td><strong class="text-accent">${peso(operatingProfit)}</strong></td>
         <td><strong class="text-accent">${marginPct}%</strong></td>
@@ -1306,7 +1620,7 @@ function renderFinance() {
         <td><span class="service-pill">${escapeHTML(op.method)}</span></td>
         <td><strong>${peso(op.amount)}</strong></td>
         <td>
-          <button class="restock-btn" data-delete-opex="${idx}" style="color:#a53333;">Remove</button>
+          <button class="restock-btn is-danger" data-delete-opex="${idx}">Remove</button>
         </td>
       </tr>
     `).join('') : '<tr><td colspan="6" class="no-results">No operating expenses recorded yet (₱0.00).</td></tr>';
@@ -1318,6 +1632,8 @@ function renderFinance() {
         saveAll();
         renderFinance();
         renderPortalPulse();
+        renderVisualAnalytics();
+        renderExecutiveReport();
         notify('OpEx expense removed.');
       });
     });
@@ -1353,27 +1669,27 @@ function renderOrders() {
   orderTable.innerHTML = displayList.length ? displayList.map(o => `
     <tr>
       <td><strong>${escapeHTML(o.id)}</strong></td>
-      <td>${escapeHTML(o.date)}<br><small style="color:#777;">${escapeHTML(o.time)}</small></td>
+      <td>${escapeHTML(o.date)}<br><small class="muted">${escapeHTML(o.time)}</small></td>
       <td>${escapeHTML(o.items)}</td>
       <td><span class="service-pill">${escapeHTML(o.service)}</span></td>
       <td>
         <strong>${escapeHTML(o.payment)}</strong>
-        ${o.referenceNumber ? `<br><small style="color:#555;">Ref: ${escapeHTML(o.referenceNumber)}</small>` : ''}
+        ${o.referenceNumber ? `<br><small class="muted">Ref: ${escapeHTML(o.referenceNumber)}</small>` : ''}
       </td>
       <td>
         ${o.discountType !== 'none' ? `<span class="text-discount">${escapeHTML(o.discountType.toUpperCase())} (-${peso(o.discountAmount)})</span><br>` : ''}
-        <small style="color:#777;">VAT: ${peso(o.vatAmount)}</small>
+        <small class="muted">VAT: ${peso(o.vatAmount)}</small>
       </td>
       <td><strong>${peso(o.total)}</strong></td>
       <td>
         <span class="status-pill ${o.status === 'Completed' ? 'completed' : o.status === 'Voided' ? 'voided' : 'waste'}">
           ${escapeHTML(o.status)}
         </span>
-        ${o.voidReason ? `<br><small style="color:#a53333;">${escapeHTML(o.voidReason)}</small>` : ''}
+        ${o.voidReason ? `<br><small class="text-discount">${escapeHTML(o.voidReason)}</small>` : ''}
       </td>
       <td>
         ${o.status === 'Completed' ? `
-          <button class="restock-btn" data-void-order="${escapeHTML(o.id)}" style="color:#a53333;">Void / Cancel</button>
+          <button class="restock-btn is-danger" data-void-order="${escapeHTML(o.id)}">Void / Cancel</button>
         ` : '—'}
       </td>
     </tr>
@@ -1429,7 +1745,7 @@ function renderInventory() {
         <td>${i.par.toLocaleString()} ${escapeHTML(i.unit)}</td>
         <td>${peso(i.cost)} / ${escapeHTML(i.unit)}</td>
         <td>
-          <small style="color:#666;">
+          <small class="muted">
             ${i.unit === 'g' ? `${peso(i.cost * 18)} per 18g shot` : i.unit === 'ml' ? `${peso(i.cost * 200)} per 200ml` : `${peso(i.cost)} per pc`}
           </small>
         </td>
@@ -1437,7 +1753,7 @@ function renderInventory() {
         <td>
           <button class="restock-btn" data-quick-stockin="${i.id}">＋ Stock</button>
           <button class="restock-btn" data-edit-ing="${i.id}">✎ Edit</button>
-          <button class="restock-btn" data-delete-ing="${i.id}" style="color:#a53333;">Remove</button>
+          <button class="restock-btn is-danger" data-delete-ing="${i.id}">Remove</button>
         </td>
       </tr>
     `;
@@ -1467,7 +1783,7 @@ function renderInventory() {
         <td><span class="status-pill waste">${escapeHTML(s.reason)}</span></td>
         <td>${escapeHTML(s.notes || '—')}</td>
         <td>
-          <button class="restock-btn" data-delete-spoilage="${idx}" style="color:#a53333;">Remove</button>
+          <button class="restock-btn is-danger" data-delete-spoilage="${idx}">Remove</button>
         </td>
       </tr>
     `).join('') : '<tr><td colspan="8" class="no-results">No operational spoilage or discards recorded yet (₱0.00 loss).</td></tr>';
@@ -1637,7 +1953,7 @@ function renderItems() {
         </td>
         <td>
           <button class="restock-btn" data-edit-product="${escapeHTML(p.id)}">Edit</button>
-          <button class="restock-btn" data-delete-product="${escapeHTML(p.id)}" style="color:#a53333;">Remove</button>
+          <button class="restock-btn is-danger" data-delete-product="${escapeHTML(p.id)}">Remove</button>
         </td>
       </tr>
     `;
@@ -1691,7 +2007,7 @@ function renderRecipeList(productId) {
     return `
       <div class="recipe-row">
         <span><strong>${escapeHTML(ingName)}</strong>: ${r.qty} ${escapeHTML(ingUnit)} (${peso(itemCost)})</span>
-        <button type="button" class="restock-btn" data-remove-recipe-item="${idx}" style="color:#a53333;">✕</button>
+        <button type="button" class="restock-btn is-danger" data-remove-recipe-item="${idx}">✕</button>
       </div>
     `;
   }).join('') : '<p class="modal-copy">No ingredients attached to this product yet.</p>';
@@ -1705,6 +2021,21 @@ function renderRecipeList(productId) {
       renderItems();
     });
   });
+}
+
+let pendingMenuItemImage = '';
+
+function syncMenuItemImagePreview(imageSrc = '') {
+  pendingMenuItemImage = imageSrc || '';
+  const preview = $('#menu-item-preview');
+  const removeBtn = $('#remove-menu-image');
+  if (preview) {
+    preview.src = pendingMenuItemImage;
+    preview.hidden = !pendingMenuItemImage;
+  }
+  if (removeBtn) {
+    removeBtn.hidden = !pendingMenuItemImage;
+  }
 }
 
 function openProductModal(productId = '') {
@@ -1721,6 +2052,9 @@ function openProductModal(productId = '') {
     $('#menu-item-category').value = product.category;
     $('#menu-item-variant').value = product.variant || 'Hot';
     $('#menu-item-emoji').value = product.emoji || '';
+    syncMenuItemImagePreview(product.image || '');
+  } else {
+    syncMenuItemImagePreview('');
   }
   $('#menu-item-dialog').showModal();
 }
@@ -1757,14 +2091,17 @@ function updateLoyaltyCustomerDisplay() {
   if (activeLoyaltyMember) {
     const isEligible = activeLoyaltyMember.stamps >= 12;
     container.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <strong>${escapeHTML(activeLoyaltyMember.name)}</strong> (${escapeHTML(activeLoyaltyMember.phone)})
-          <span class="loyalty-stamp-badge">${activeLoyaltyMember.stamps} / 12 Stamps</span>
+      <div class="loyalty-member">
+        <span class="loyalty-avatar" aria-hidden="true">${escapeHTML(activeLoyaltyMember.name.trim().charAt(0).toUpperCase())}</span>
+        <div class="loyalty-member-copy">
+          <strong>${escapeHTML(activeLoyaltyMember.name)}</strong>
+          <span class="loyalty-stamps" aria-label="${activeLoyaltyMember.stamps} of 12 stamps">
+            ${Array.from({ length: 12 }, (_, i) => `<i class="${i < activeLoyaltyMember.stamps ? 'on' : ''}"></i>`).join('')}
+          </span>
         </div>
-        <button type="button" class="restock-btn" id="btn-detach-loyalty" title="Detach customer" style="color:#a53333; margin-left:6px;">✕ Detach</button>
+        <button type="button" class="restock-btn is-danger" id="btn-detach-loyalty" title="Remove customer from this order">Remove</button>
       </div>
-      ${isEligible ? `<button type="button" class="restock-btn" id="btn-redeem-stamp" style="margin-top:6px; width:100%; background:#fff9e6; color:#8c6500; font-weight:bold;">🎁 Redeem Free Drink (12 Stamps)</button>` : ''}
+      ${isEligible ? `<button type="button" class="restock-btn reward-btn" id="btn-redeem-stamp">Free drink earned · Redeem</button>` : ''}
     `;
 
     $('#btn-detach-loyalty')?.addEventListener('click', () => {
@@ -1797,7 +2134,7 @@ function updateLoyaltyCustomerDisplay() {
       });
     }
   } else {
-    container.innerHTML = '<em>No customer attached (Guest)</em>';
+    container.innerHTML = '<em>Guest</em>';
   }
 }
 
@@ -1857,17 +2194,17 @@ function openRedeemDrinkModal(member = activeLoyaltyMember) {
     const availableDrinks = prodList.filter(p => DRINK_CATEGORIES.includes(p.category) && (!query || p.name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query)));
 
     if (!availableDrinks.length) {
-      listContainer.innerHTML = '<p class="modal-copy" style="text-align:center; padding:12px;">No matching beverages found.</p>';
+      listContainer.innerHTML = '<p class="modal-copy empty-note">No matching beverages found.</p>';
       return;
     }
 
     listContainer.innerHTML = availableDrinks.map(d => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #eee; background:#fff; border-radius:4px;">
+      <div class="pending-ticket-row">
         <div>
-          <strong>${escapeHTML(d.name)}</strong><br>
-          <small style="color:#666;">${escapeHTML(d.category)} • Regular: ${peso(d.price)}</small>
+          <strong>${escapeHTML(d.name)}</strong>
+          <small class="muted">${escapeHTML(d.category)} · usually ${peso(d.price)}</small>
         </div>
-        <button type="button" class="button button-dark" data-select-free-drink="${escapeHTML(d.id)}" style="padding:6px 12px; font-size:12px; background:#1b382b; color:#fff;">Redeem Free ☕</button>
+        <button type="button" class="button button-dark" data-select-free-drink="${escapeHTML(d.id)}">Make it free</button>
       </div>
     `).join('');
 
@@ -1934,7 +2271,7 @@ function renderLoyaltyResults(query = '') {
   );
 
   if (matched.length === 0) {
-    container.innerHTML = `<p class="modal-copy" style="padding:10px; text-align:center;">No members found matching "${escapeHTML(query)}". Use the form below to register a new member.</p>`;
+    container.innerHTML = `<p class="modal-copy empty-note">No members found matching "${escapeHTML(query)}". Use the form below to register a new member.</p>`;
     return;
   }
 
@@ -1943,11 +2280,11 @@ function renderLoyaltyResults(query = '') {
       <div>
         <strong>${escapeHTML(m.name)}</strong> <small>(${escapeHTML(m.phone)})</small><br>
         <span class="loyalty-stamp-badge">${m.stamps} / 12 Stamps</span>
-        ${m.stamps >= 12 ? '<span class="reward-ready-badge">Free Drink Ready! 🎁</span>' : ''}
+        ${m.stamps >= 12 ? '<span class="reward-ready-badge">Free drink ready</span>' : ''}
       </div>
       <div class="loyalty-item-actions">
-        <button type="button" class="button button-dark" data-attach-loyalty="${escapeHTML(m.id)}">Attach to Ticket</button>
-        ${m.stamps >= 12 ? `<button type="button" class="button button-light" data-modal-redeem="${escapeHTML(m.id)}" style="color:#b85333;">Redeem (12)</button>` : ''}
+        <button type="button" class="button button-dark" data-attach-loyalty="${escapeHTML(m.id)}">Add to order</button>
+        ${m.stamps >= 12 ? `<button type="button" class="button button-light" data-modal-redeem="${escapeHTML(m.id)}">Redeem free drink</button>` : ''}
       </div>
     </div>
   `).join('');
@@ -2051,38 +2388,38 @@ function renderPromos() {
   if (!rows) return;
 
   if (!filtered.length) {
-    rows.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No promotions match your filter criteria.</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="8" class="no-results">No promotions match your filter criteria.</td></tr>`;
     return;
   }
 
   rows.innerHTML = filtered.map(p => {
     const statusBadge = p.active
-      ? `<span class="service-pill" style="background:#e6f4ea; color:#137333; font-weight:600;">Active</span>`
-      : `<span class="service-pill" style="background:#fce8e6; color:#c5221f; font-weight:600;">Inactive</span>`;
+      ? `<span class="status-pill completed">Active</span>`
+      : `<span class="status-pill voided">Inactive</span>`;
 
     const typeBadge = p.type === 'percentage'
       ? `<span class="service-pill">Percentage (%)</span>`
       : `<span class="service-pill">Fixed (₱)</span>`;
 
     const valDisplay = p.type === 'percentage' ? `${p.value}% Off` : `${peso(p.value)} Off`;
-    const minDisplay = Number(p.minSpend) > 0 ? peso(p.minSpend) : '<span style="color:var(--text-muted);">None</span>';
-    const capDisplay = (p.type === 'percentage' && Number(p.maxCap) > 0) ? peso(p.maxCap) : '<span style="color:var(--text-muted);">No cap</span>';
+    const minDisplay = Number(p.minSpend) > 0 ? peso(p.minSpend) : '<span class="muted">None</span>';
+    const capDisplay = (p.type === 'percentage' && Number(p.maxCap) > 0) ? peso(p.maxCap) : '<span class="muted">No cap</span>';
 
     return `
       <tr>
-        <td><strong style="letter-spacing:0.05em; font-family:monospace; font-size:1rem; color:var(--text-accent);">${escapeHTML(p.code)}</strong></td>
+        <td><strong class="promo-code">${escapeHTML(p.code)}</strong></td>
         <td>
-          <div style="font-weight:600;">${escapeHTML(p.name)}</div>
+          <div class="strong">${escapeHTML(p.name)}</div>
         </td>
         <td>${typeBadge}</td>
-        <td><strong style="color:var(--text-dark);">${valDisplay}</strong></td>
+        <td><strong>${valDisplay}</strong></td>
         <td>${minDisplay}</td>
         <td>${capDisplay}</td>
         <td>${statusBadge}</td>
         <td>
           <button class="restock-btn" data-toggle-promo="${escapeHTML(p.id)}">${p.active ? 'Disable' : 'Enable'}</button>
           <button class="restock-btn" data-edit-promo="${escapeHTML(p.id)}">✎ Edit</button>
-          <button class="restock-btn" data-delete-promo="${escapeHTML(p.id)}" style="color:#a53333;">🗑 Remove</button>
+          <button class="restock-btn is-danger" data-delete-promo="${escapeHTML(p.id)}">Remove</button>
         </td>
       </tr>
     `;
@@ -2358,14 +2695,14 @@ function initApp() {
       return;
     }
     $('#pending-tickets-list').innerHTML = pendingTickets.map((t, idx) => `
-      <div class="pending-ticket-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #ddd;">
+      <div class="pending-ticket-row">
         <div>
-          <strong>${escapeHTML(t.label)}</strong> <small>(${escapeHTML(t.time)})</small><br>
-          <small style="color:#666;">${t.items.reduce((sum, i) => sum + i.qty, 0)} items · ${escapeHTML(t.service)}</small>
+          <strong>${escapeHTML(t.label)}</strong>
+          <small class="muted">${escapeHTML(t.time)} · ${t.items.reduce((sum, i) => sum + i.qty, 0)} items · ${escapeHTML(t.service)}</small>
         </div>
-        <div>
+        <div class="row-actions">
+          <button class="button button-light is-danger" data-delete-pending="${idx}">Discard</button>
           <button class="button button-dark" data-resume-index="${idx}">Resume</button>
-          <button class="button button-light" data-delete-pending="${idx}" style="color:#a53333;">Discard</button>
         </div>
       </div>
     `).join('');
@@ -2629,6 +2966,7 @@ function initApp() {
     $('#stock-in-dialog').close();
     renderInventory();
     renderFinance();
+    renderVisualAnalytics();
     notify(`Stocked in ${qty} ${ing.unit} of ${ing.name}.`);
   });
 
@@ -2707,8 +3045,24 @@ function initApp() {
     $('#opex-dialog').close();
     renderFinance();
     renderPortalPulse();
+    renderVisualAnalytics();
     renderExecutiveReport();
     notify(`Expense "${description}" recorded.`);
+  });
+
+  // Dashboard Mode Switcher (Sales vs Expenses & Operating)
+  $$('[data-dashboard-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeDashboardTab = btn.dataset.dashboardTab === 'expenses' ? 'expenses' : 'sales';
+      $$('[data-dashboard-tab]').forEach(b => {
+        const isSelected = b === btn;
+        b.classList.toggle('selected', isSelected);
+        b.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      });
+      if ($('#analytics-sales-panel')) $('#analytics-sales-panel').hidden = activeDashboardTab !== 'sales';
+      if ($('#analytics-expenses-panel')) $('#analytics-expenses-panel').hidden = activeDashboardTab !== 'expenses';
+      renderVisualAnalytics();
+    });
   });
 
   // Analytics Filters
@@ -2907,9 +3261,9 @@ function initApp() {
     if (!container) return;
 
     container.innerHTML = menuGroups.map((g, idx) => `
-      <div class="pending-ticket-row" style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #ddd;">
+      <div class="pending-ticket-row">
         <strong>${escapeHTML(g)}</strong>
-        <button type="button" class="restock-btn" data-delete-group="${idx}" style="color:#a53333;">Remove</button>
+        <button type="button" class="restock-btn is-danger" data-delete-group="${idx}">Remove</button>
       </div>
     `).join('');
 
@@ -2956,6 +3310,26 @@ function initApp() {
 
   // Add Item to Menu & Groups
   $('#add-menu-item')?.addEventListener('click', () => openProductModal());
+  $('#menu-item-image')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      notify('Please select a valid image file.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        syncMenuItemImagePreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  $('#remove-menu-image')?.addEventListener('click', () => {
+    if ($('#menu-item-image')) $('#menu-item-image').value = '';
+    syncMenuItemImagePreview('');
+  });
   $('#menu-item-form')?.addEventListener('submit', e => {
     e.preventDefault();
     const id = $('#menu-item-id').value;
@@ -2970,15 +3344,33 @@ function initApp() {
 
     const existing = products.find(p => p.id === id);
     if (existing) {
+      if (emoji !== (existing.emoji || '')) {
+        existing.customIcon = true;
+      }
       existing.name = name;
       existing.detail = detail;
       existing.price = price;
       existing.category = category;
       existing.variant = variant;
       existing.emoji = emoji;
+      if (pendingMenuItemImage) {
+        existing.image = pendingMenuItemImage;
+      } else {
+        delete existing.image;
+      }
     } else {
       const newId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      products.push({ id: newId, name, detail, price, category, variant, emoji });
+      products.push({
+        id: newId,
+        name,
+        detail,
+        price,
+        category,
+        variant,
+        emoji,
+        customIcon: true,
+        ...(pendingMenuItemImage ? { image: pendingMenuItemImage } : {})
+      });
       recipes[newId] = [];
     }
 

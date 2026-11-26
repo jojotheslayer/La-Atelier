@@ -26,22 +26,22 @@
 
     <!-- 2. Barista POS Mode Nav (USER Role) -->
     <nav class="main-nav" id="nav-pos" aria-label="Barista navigation" hidden>
-      <button class="nav-link active" data-view="pos">Register</button>
-      <button class="nav-link" data-view="orders">Orders &amp; voids</button>
-      <button class="nav-link" data-view="shift">Cash drawer</button>
-      <button class="nav-link nav-switch" data-switch-mode="portal">Switch station</button>
+      <button class="nav-link active" data-view="pos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10M12 16v4M7 9h4"/></svg><span>Register</span></button>
+      <button class="nav-link" data-view="orders"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Orders &amp; voids</span></button>
+      <button class="nav-link" data-view="shift"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 11h18M15 15h2"/></svg><span>Cash drawer</span></button>
+      <button class="nav-link nav-switch" data-switch-mode="portal"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Switch station</span></button>
     </nav>
 
     <!-- 3. Management Mode Nav (MANAGEMENT Role) -->
     <nav class="main-nav" id="nav-mgmt" aria-label="Management navigation" hidden>
-      <button class="nav-link active" data-view="analytics">Dashboard</button>
-      <button class="nav-link" data-view="orders">Orders</button>
-      <button class="nav-link" data-view="finance">Finance</button>
-      <button class="nav-link" data-view="inventory">Inventory</button>
-      <button class="nav-link" data-view="items">Menu &amp; recipes</button>
-      <button class="nav-link" data-view="promos">Promos</button>
-      <button class="nav-link" data-view="report">Report</button>
-      <button class="nav-link nav-switch" data-switch-mode="portal">Switch station</button>
+      <button class="nav-link active" data-view="analytics"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/></svg><span>Dashboard</span></button>
+      <button class="nav-link" data-view="orders"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Orders</span></button>
+      <button class="nav-link" data-view="finance"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Finance</span></button>
+      <button class="nav-link" data-view="inventory"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><span>Inventory</span></button>
+      <button class="nav-link" data-view="items"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z"/><path d="M4 19a2 2 0 0 0 2 2h13M9 8h6"/></svg><span>Menu &amp; recipes</span></button>
+      <button class="nav-link" data-view="promos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12Z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg><span>Promos</span></button>
+      <button class="nav-link" data-view="report"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7l-4-4Z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg><span>Report</span></button>
+      <button class="nav-link nav-switch" data-switch-mode="portal"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span>Switch station</span></button>
     </nav>
 
     <div class="header-status">
@@ -53,73 +53,93 @@
     <!-- ========================================================
          0. LANDING PORTAL (SEPARATES POS & MANAGEMENT)
          ======================================================== -->
-    <section id="portal-view" class="view active-view">
-      <div class="portal-hero">
-        <div class="portal-badge">Le Augem Café · Bricks &amp; Wood</div>
-        <h1>Where are you working today?</h1>
-        <p>Pick a station. You can switch any time from the top bar.</p>
-      </div>
-
-      <!-- Two stations. The whole card is the hit area. -->
-      <div class="portal-cards-grid">
+    <section id="portal-view" class="view active-view" aria-labelledby="portal-title">
+      <div class="portal-split">
+        <!-- Station 1: Counter (baristas & servers) -->
         <div class="portal-choice-card pos-choice">
-          <div class="portal-card-header">
-            <span class="portal-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></svg></span>
-            <div>
-              <h2>Counter</h2>
-              <span class="card-subtitle">For baristas and servers</span>
-            </div>
+          <div class="portal-top">
+            <span class="portal-brand">
+              <span class="brand-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></svg></span>
+              Le Augem Café
+            </span>
           </div>
-          <p class="portal-card-copy">
-            Ring up orders, apply Senior and PWD discounts, take Cash, GCash, Maya or card, and print cup stickers.
-          </p>
-          <button class="portal-action-btn" data-switch-mode="pos">
-            <span>Open register</span>
-            <span class="arrow" aria-hidden="true">→</span>
-          </button>
+
+          <div class="portal-intro">
+            <p class="portal-greeting" id="portal-greeting">Good day.</p>
+            <h1 id="portal-title">Where are you working today?</h1>
+          </div>
+
+          <div class="portal-card-body">
+            <span class="portal-kicker">For baristas &amp; servers</span>
+            <h2>Counter</h2>
+            <p class="portal-card-copy">Ring up orders, apply Senior and PWD discounts, take Cash, GCash, Maya or card, and print cup stickers.</p>
+            <button class="portal-action-btn" data-switch-mode="pos">
+              <span>Open register</span>
+              <span class="arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+
+          <!-- Cup reacts to the cursor: tips toward "Open register",
+               settles onto a floating plate near "See today's numbers". -->
+          <svg class="portal-art" id="portal-art" viewBox="0 0 240 260" aria-hidden="true">
+            <ellipse class="pa-shadow" id="pa-shadow" cx="120" cy="232" rx="80" ry="9"/>
+            <g id="pa-plate">
+              <ellipse class="pa-plate" cx="120" cy="212" rx="86" ry="15"/>
+              <ellipse class="pa-plate-well" cx="120" cy="209" rx="54" ry="8"/>
+            </g>
+            <g id="pa-cup">
+              <g class="pa-steam" id="pa-steam">
+                <path d="M104 52c-10 12 10 18 0 30M132 44c-10 12 10 18 0 30"/>
+              </g>
+              <path class="pa-handle" d="M176 124h10a20 20 0 0 1 0 40h-14"/>
+              <path class="pa-cup" d="M64 112h116v32a54 54 0 0 1-54 54h-8a54 54 0 0 1-54-54v-32Z"/>
+              <ellipse class="pa-coffee" cx="122" cy="112" rx="58" ry="11"/>
+              <path class="pa-art" d="M108 110c6-8 22-8 28 0-6 6-22 6-28 0Z"/>
+            </g>
+          </svg>
         </div>
 
+        <!-- Station 2: Back office (owner) -->
         <div class="portal-choice-card mgmt-choice">
-          <div class="portal-card-header">
-            <span class="portal-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
-            <div>
-              <h2>Back office</h2>
-              <span class="card-subtitle">For the owner</span>
-            </div>
+          <div class="portal-top portal-top-end">
+            <span class="portal-date" id="portal-date"></span>
           </div>
-          <p class="portal-card-copy">
-            See today's sales and margin, track ingredient stock and costs, log expenses, and print the sales report.
-          </p>
-          <button class="portal-action-btn" data-switch-mode="mgmt">
-            <span>See today's numbers</span>
-            <span class="arrow" aria-hidden="true">→</span>
-          </button>
-        </div>
-      </div>
 
-      <!-- Today so far -->
-      <div class="portal-pulse">
-        <h2 class="section-label">Today so far</h2>
-        <div class="metrics-grid portal-metrics">
-          <div class="metric-card">
-            <span class="metric-label">Sales</span>
-            <strong class="metric-value" id="portal-gross-sales">₱0.00</strong>
-            <small class="metric-sub" id="portal-order-count">0 orders</small>
+          <div class="portal-card-body">
+            <span class="portal-kicker">For the owner</span>
+            <h2>Back office</h2>
+            <p class="portal-card-copy">See sales and margin, track ingredient stock and costs, log expenses, and print the sales report.</p>
+            <button class="portal-action-btn" data-switch-mode="mgmt">
+              <span>See today's numbers</span>
+              <span class="arrow" aria-hidden="true">→</span>
+            </button>
           </div>
-          <div class="metric-card">
-            <span class="metric-label">Customers served</span>
-            <strong class="metric-value" id="portal-footfall">0</strong>
-            <small class="metric-sub">One order counts as one customer</small>
-          </div>
-          <div class="metric-card">
-            <span class="metric-label">Average order</span>
-            <strong class="metric-value" id="portal-aov">₱0.00</strong>
-            <small class="metric-sub">Per ticket</small>
-          </div>
-          <div class="metric-card">
-            <span class="metric-label">Estimated net profit</span>
-            <strong class="metric-value text-accent" id="portal-net-profit">₱0.00</strong>
-            <small class="metric-sub">After ingredients and expenses</small>
+
+          <!-- Today so far -->
+          <div class="portal-pulse">
+            <h2 class="section-label">Today so far</h2>
+            <div class="portal-metrics">
+              <div class="metric-card">
+                <span class="metric-label">Sales</span>
+                <strong class="metric-value" id="portal-gross-sales">₱0.00</strong>
+                <small class="metric-sub" id="portal-order-count">0 orders</small>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Customers</span>
+                <strong class="metric-value" id="portal-footfall">0</strong>
+                <small class="metric-sub">Served today</small>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Average order</span>
+                <strong class="metric-value" id="portal-aov">₱0.00</strong>
+                <small class="metric-sub">Per ticket</small>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Est. net profit</span>
+                <strong class="metric-value text-accent" id="portal-net-profit">₱0.00</strong>
+                <small class="metric-sub">After costs</small>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -399,17 +419,24 @@
       <div class="page-heading compact-heading">
         <div>
           <h1>Dashboard</h1>
-          <p>Sales, margin and peak hours for the period you pick.</p>
+          <p>Sales, margin, operating costs and peak hours for the period you pick.</p>
+          <p class="range-label" id="analytics-range-label" aria-live="polite"></p>
         </div>
-        <!-- Preset Date Filters & Simulation Controls -->
-        <div class="analytics-filter-bar">
-          <button class="analytics-filter-btn selected" data-range="today">Today</button>
-          <button class="analytics-filter-btn" data-range="week">This Week</button>
-          <button class="analytics-filter-btn" data-range="month">This Month</button>
-          <button class="analytics-filter-btn" data-range="quarter">This Quarter</button>
-          <button class="analytics-filter-btn" data-range="sixths">6 months</button>
-          <button class="analytics-filter-btn" data-range="year">This Year</button>
-          <button class="analytics-filter-btn" data-range="custom">Custom</button>
+        <div class="analytics-header-controls">
+          <div class="dashboard-mode-switcher" role="tablist" aria-label="Dashboard view">
+            <button type="button" class="dashboard-mode-btn selected" role="tab" aria-selected="true" data-dashboard-tab="sales">Sales dashboard</button>
+            <button type="button" class="dashboard-mode-btn" role="tab" aria-selected="false" data-dashboard-tab="expenses">Expenses &amp; operating</button>
+          </div>
+          <!-- Preset Date Filters & Simulation Controls -->
+          <div class="analytics-filter-bar">
+            <button class="analytics-filter-btn selected" data-range="today">Today</button>
+            <button class="analytics-filter-btn" data-range="week">This Week</button>
+            <button class="analytics-filter-btn" data-range="month">This Month</button>
+            <button class="analytics-filter-btn" data-range="quarter">This Quarter</button>
+            <button class="analytics-filter-btn" data-range="sixths">6 months</button>
+            <button class="analytics-filter-btn" data-range="year">This Year</button>
+            <button class="analytics-filter-btn" data-range="custom">Custom</button>
+          </div>
         </div>
       </div>
 
@@ -422,6 +449,7 @@
         <button class="button button-dark" id="btn-apply-custom-date">Filter</button>
       </div>
 
+      <div id="analytics-sales-panel" class="analytics-tab-panel">
       <!-- Reference Layout: Top 4 KPI Metrics -->
       <div class="analytics-kpi-row">
         <div class="analytics-kpi-card">
@@ -561,7 +589,8 @@
 
         <section class="panel">
           <div class="panel-header">
-            <h2>Hourly Sales Distribution</h2>
+            <h2>Sales by hour <span class="panel-sub">latest first</span></h2>
+            <span class="panel-meta" id="hourly-range-label"></span>
           </div>
           <div class="table-scroll">
             <table>
@@ -574,6 +603,120 @@
                 </tr>
               </thead>
               <tbody id="hourly-sales-rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+      </div>
+
+      <!-- Expenses & Operating Dashboard Panel -->
+      <div id="analytics-expenses-panel" class="analytics-tab-panel" hidden>
+        <div class="analytics-kpi-row exp-kpi-row">
+          <div class="analytics-kpi-card exp-hero-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div>
+              <span class="kpi-title">Total Operating Expenses (OpEx)</span>
+              <strong class="kpi-value" id="exp-total-opex">₱0.00</strong>
+              <small class="kpi-sub" id="exp-opex-delta">0 expenses recorded</small>
+            </div>
+          </div>
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></div>
+            <div>
+              <span class="kpi-title">Cost of Goods Sold (COGS)</span>
+              <strong class="kpi-value" id="exp-total-cogs">₱0.00</strong>
+              <small class="kpi-sub" id="exp-cogs-delta">0.0% of sales</small>
+            </div>
+          </div>
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></div>
+            <div>
+              <span class="kpi-title">Spoilage &amp; Waste (Lugi)</span>
+              <strong class="kpi-value text-warning" id="exp-total-spoilage">₱0.00</strong>
+              <small class="kpi-sub" id="exp-spoilage-delta">0 waste events</small>
+            </div>
+          </div>
+          <div class="analytics-kpi-card exp-margin-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></div>
+            <div>
+              <span class="kpi-title">Net Operating Margin</span>
+              <strong class="kpi-value text-accent" id="exp-net-margin">0.0%</strong>
+              <small class="kpi-sub" id="exp-ratio-delta">Expense-to-sales ratio: 0.0%</small>
+            </div>
+          </div>
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h12l3 5v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8l3-5Z"/><path d="M3 8h18M10 12h4"/></svg></div>
+            <div>
+              <span class="kpi-title">Stock-In / Purchases</span>
+              <strong class="kpi-value" id="exp-total-stockin">₱0.00</strong>
+              <small class="kpi-sub" id="exp-stockin-delta">0 restock deliveries</small>
+            </div>
+          </div>
+          <div class="analytics-kpi-card">
+            <div class="kpi-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m17 14 5-5-5-5M22 9H9M7 10l-5 5 5 5M2 15h13"/></svg></div>
+            <div>
+              <span class="kpi-title">Total Outflows</span>
+              <strong class="kpi-value text-warning" id="exp-total-outflows">₱0.00</strong>
+              <small class="kpi-sub" id="exp-outflows-delta">OpEx + Stock-In</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="exp-charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>OpEx breakdown by category</h3>
+              <span class="chart-meta">Share of Operating Expenses</span>
+            </div>
+            <div class="chart-container" id="chart-exp-category-container">
+              <div id="exp-category-bars-list" class="category-bars-list"></div>
+              <div id="chart-exp-category-empty" class="chart-empty">No operating expenses recorded in this period (₱0.00).</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Expense payment method</h3>
+              <span class="chart-meta">Petty Cash, GCash &amp; Bank</span>
+            </div>
+            <div class="chart-container" id="chart-exp-method-container">
+              <div id="exp-method-bars-list" class="top5-bars-list"></div>
+              <div id="chart-exp-method-empty" class="chart-empty">No expense payment data for this period.</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Cost composition</h3>
+              <span class="chart-meta">COGS vs OpEx vs Spoilage</span>
+            </div>
+            <div class="chart-container" id="chart-cost-composition-container">
+              <div class="size-donut-wrapper">
+                <svg id="svg-cost-donut" class="donut-svg" viewBox="0 0 160 160"></svg>
+                <div class="size-legend" id="cost-legend-container"></div>
+              </div>
+              <div id="chart-cost-empty" class="chart-empty">0 costs recorded in this period.</div>
+            </div>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Itemized operating expenses</h2>
+            <span class="panel-meta" id="exp-table-range-label"></span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>CATEGORY</th>
+                  <th>DESCRIPTION</th>
+                  <th>PAID VIA</th>
+                  <th>AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody id="exp-opex-rows"></tbody>
             </table>
           </div>
         </section>
@@ -1623,5 +1766,101 @@
       <button class="checkout-button modal-submit" type="submit" id="btn-save-promo">Save Promotion</button>
     </form>
   </dialog>
+  <!-- Portal greeting and date (display only) -->
+  <script>
+    (function () {
+      var now = new Date();
+      var h = now.getHours();
+      var greet = h < 12 ? 'Good morning.' : h < 18 ? 'Good afternoon.' : 'Good evening.';
+      var g = document.getElementById('portal-greeting');
+      var d = document.getElementById('portal-date');
+      if (g) g.textContent = greet;
+      if (d) d.textContent = now.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' });
+    })();
+  </script>
+
+  <!-- Portal cup: tips toward "Open register", settles onto a floating
+       plate near "See today's numbers". Display only. -->
+  <script>
+    (function () {
+      var split = document.querySelector('.portal-split');
+      var cup = document.getElementById('pa-cup');
+      var plate = document.getElementById('pa-plate');
+      var shadow = document.getElementById('pa-shadow');
+      var steam = document.getElementById('pa-steam');
+      var posBtn = document.querySelector('.pos-choice .portal-action-btn');
+      var mgmtBtn = document.querySelector('.mgmt-choice .portal-action-btn');
+      if (!split || !cup || !plate || !posBtn || !mgmtBtn) return;
+      if (!window.matchMedia('(hover: hover)').matches) return;
+      // Always full strength (owner's choice), even with the OS "reduce motion" setting
+      var AMP = 1;
+      var STIFF = 0.09;
+      var DAMP = 0.76;
+
+      // Pivot: bottom centre of the cup
+      var PX = 122, PY = 198;
+      var REST = { rot: 0, cupY: 0, plateY: 0 };
+      var target = { rot: 0, cupY: 0, plateY: 0 };
+      var state = { rot: 0, cupY: 0, plateY: 0 };
+      var vel = { rot: 0, cupY: 0, plateY: 0 };
+      var running = false;
+
+      function centre(el) {
+        var r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+
+      function onMove(e) {
+        var a = centre(posBtn), b = centre(mgmtBtn);
+        var dA = Math.hypot(e.clientX - a.x, e.clientY - a.y);
+        var dB = Math.hypot(e.clientX - b.x, e.clientY - b.y);
+        var m = dA / (dA + dB || 1);   // 0 at register button, 1 at back-office button
+        var p = 1 - m;
+
+        var plateY = -20 * AMP * Math.pow(m, 1.6);        // plate floats up
+        var lift = -22 * AMP * Math.pow(p, 1.3);          // cup lifts off as it tips
+        target.plateY = plateY;
+        target.cupY = plateY + lift;                      // when m=1 the cup rides on the plate
+        target.rot = -32 * AMP * Math.pow(p, 1.5);        // tip toward the register button
+        start();
+      }
+
+      function onLeave() {
+        target.rot = REST.rot; target.cupY = REST.cupY; target.plateY = REST.plateY;
+        start();
+      }
+
+      function start() {
+        if (!running) { running = true; requestAnimationFrame(tick); }
+      }
+
+      // Light spring: a touch of overshoot so the cup "settles"
+      function tick() {
+        var moving = false;
+        ['rot', 'cupY', 'plateY'].forEach(function (k) {
+          vel[k] += (target[k] - state[k]) * STIFF;
+          vel[k] *= DAMP;
+          state[k] += vel[k];
+          if (Math.abs(vel[k]) > 0.01 || Math.abs(target[k] - state[k]) > 0.01) moving = true;
+        });
+
+        cup.setAttribute('transform',
+          'translate(0 ' + state.cupY.toFixed(2) + ') rotate(' + state.rot.toFixed(2) + ' ' + PX + ' ' + PY + ')');
+        plate.setAttribute('transform', 'translate(0 ' + state.plateY.toFixed(2) + ')');
+
+        var float = Math.min(1, -state.plateY / (20 * AMP));
+        var s = 1 - 0.3 * float;
+        shadow.setAttribute('transform',
+          'translate(120 232) scale(' + s.toFixed(3) + ') translate(-120 -232)');
+        shadow.style.opacity = (1 - 0.45 * float).toFixed(3);
+        steam.style.opacity = Math.max(0, 1 - Math.abs(state.rot) / 22).toFixed(3);
+
+        if (moving) requestAnimationFrame(tick); else running = false;
+      }
+
+      split.addEventListener('pointermove', onMove);
+      split.addEventListener('pointerleave', onLeave);
+    })();
+  </script>
 </body>
 </html>
